@@ -540,7 +540,17 @@ public final class ReblockGVCF extends VariantWalker {
         }
         //do QUAL calcs after we potentially drop alleles
         if (doQualApprox && g.hasPL()) {
-            attrMap.put(GATKVCFConstants.RAW_QUAL_APPROX_KEY, g.getPL()[0]);
+            int[] pls;
+             if (result.getAlternateAlleles().contains(Allele.SPAN_DEL)) {
+                 final List<Allele> altsWithoutStar = new ArrayList<>(result.getAlleles());
+                 altsWithoutStar.remove(Allele.SPAN_DEL);
+                 final int[] subsettedPLIndices = AlleleSubsettingUtils.subsettedPLIndices(PLOIDY_TWO, result.getAlleles(), altsWithoutStar);
+                 final int[] oldPLs = g.getPL();
+                 pls = Arrays.stream(subsettedPLIndices).map(idx -> oldPLs[idx]).toArray();
+             } else {
+                 pls = g.getPL();
+             }
+            attrMap.put(GATKVCFConstants.RAW_QUAL_APPROX_KEY, pls[0]);
             int varDP = QualByDepth.getDepth(result.getGenotypes(), null);
             if (varDP == 0) {  //prevent QD=Infinity case
                 varDP = originalVC.getAttributeAsInt(VCFConstants.DEPTH_KEY, 1); //if there's no VarDP and no DP, just prevent Infs/NaNs and QD will get capped later
