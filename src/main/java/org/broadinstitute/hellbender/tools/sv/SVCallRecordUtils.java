@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.IntervalTree;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.VCFConstants;
@@ -111,6 +110,20 @@ public final class SVCallRecordUtils {
         return new SVCallRecord(record.getId(), record.getContigA(), record.getPositionA(), record.getStrandA(), record.getContigB(),
                 record.getPositionB(), record.getStrandB(), record.getType(), record.getLength(), record.getAlgorithms(), record.getAlleles(),
                 genotypes, record.getAttributes());
+    }
+
+    /**
+     * Creates shallow copy of the given record with attributes added
+     * @param record base record
+     * @param additionalAttributes new attributes
+     * @return new record
+     */
+    public static SVCallRecord copyCallWithAddedAttributes(final SVCallRecord record, final Map<String, Object> additionalAttributes) {
+        final Map<String, Object> attributes = new HashMap<>(record.getAttributes());
+        attributes.putAll(additionalAttributes);
+        return new SVCallRecord(record.getId(), record.getContigA(), record.getPositionA(), record.getStrandA(), record.getContigB(),
+                record.getPositionB(), record.getStrandB(), record.getType(), record.getLength(), record.getAlgorithms(), record.getAlleles(),
+                record.getGenotypes(), attributes);
     }
 
     // TODO : for a later PR
@@ -257,50 +270,6 @@ public final class SVCallRecordUtils {
         }
         // Otherwise use length
         return call.getLength() >= minEventSize;
-    }
-
-    // TODO for a future pr
-    public static <T> boolean intervalIsIncluded(final SVCallRecord call, final Map<String, IntervalTree<T>> includedIntervalTreeMap,
-                                                 final double minOverlapFraction, final boolean requireBreakendOverlap) {
-        final IntervalTree<T> startTree = includedIntervalTreeMap.get(call.getContigA());
-        // Contig A included
-        if (startTree == null) {
-            return false;
-        }
-        final IntervalTree<T> endTree = includedIntervalTreeMap.get(call.getContigB());
-        // Contig B included
-        if (endTree == null) {
-            return false;
-        }
-        // Breakends both included, if required
-        if (requireBreakendOverlap && !(startTree.overlappers(call.getPositionA(), call.getPositionA() + 1).hasNext()
-                && endTree.overlappers(call.getPositionB(), call.getPositionB() + 1).hasNext())) {
-            return false;
-        }
-        // Can include all interchromosomal variants at this point
-        if (!call.getContigA().equals(call.getContigB())) {
-            return true;
-        }
-        // Check overlap fraction
-        final long overlapLength = totalOverlap(call.getPositionA(), call.getPositionB(), startTree);
-        final double overlapFraction = overlapLength / (double) (call.getPositionB() - call.getPositionA());
-        return overlapFraction >= minOverlapFraction;
-    }
-
-    // TODO for a future pr
-    private static <T> long totalOverlap(final int start, final int end, final IntervalTree<T> tree) {
-        final Iterator<IntervalTree.Node<T>> iter = tree.overlappers(start, end);
-        long overlap = 0;
-        while (iter.hasNext()) {
-            final IntervalTree.Node<T> node = iter.next();
-            overlap += intersectionLength(start, end, node.getStart(), node.getEnd());
-        }
-        return overlap;
-    }
-
-    // TODO for a future pr
-    private static long intersectionLength(final int start1, final int end1, final int start2, final int end2) {
-        return Math.max(0, Math.min(end1, end2) - Math.max(start1, start2) + 1);
     }
 
     /**
