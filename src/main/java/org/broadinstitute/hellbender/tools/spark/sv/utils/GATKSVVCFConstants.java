@@ -100,9 +100,6 @@ public final class GATKSVVCFConstants {
     // Clustering
     public static final String CLUSTER_MEMBER_IDS_KEY = "MEMBERS";
 
-    // Regions
-    public static final String REGIONS_KEY = "REGIONS";
-
     // evidence metrics
     public static final String COPY_NUMBER_LOG_POSTERIORS_KEY = "CNLP";
     public static final String NEUTRAL_COPY_NUMBER_KEY = "NCN";

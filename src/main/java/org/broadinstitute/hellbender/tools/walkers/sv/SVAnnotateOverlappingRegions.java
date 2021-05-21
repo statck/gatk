@@ -3,10 +3,14 @@ package org.broadinstitute.hellbender.tools.walkers.sv;
 import com.google.common.annotations.VisibleForTesting;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.IntervalTree;
+import htsjdk.variant.variantcontext.StructuralVariantType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.*;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.broadinstitute.barclay.argparser.Argument;
 import org.broadinstitute.barclay.argparser.BetaFeature;
 import org.broadinstitute.barclay.argparser.CommandLineProgramProperties;
@@ -14,7 +18,6 @@ import org.broadinstitute.barclay.help.DocumentedFeature;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.StructuralVariantDiscoveryProgramGroup;
 import org.broadinstitute.hellbender.engine.*;
-import org.broadinstitute.hellbender.tools.spark.sv.utils.GATKSVVCFConstants;
 import org.broadinstitute.hellbender.tools.sv.SVCallRecord;
 import org.broadinstitute.hellbender.tools.sv.SVCallRecordUtils;
 import org.broadinstitute.hellbender.utils.*;
@@ -77,13 +80,11 @@ import java.util.stream.Collectors;
 @BetaFeature
 @DocumentedFeature
 public final class SVAnnotateOverlappingRegions extends VariantWalker {
+    public static final String REGIONS_FILE_LONG_NAME = "region-file";
     public static final String REGIONS_NAME_LONG_NAME = "region-name";
-    public static final String ADD_REGIONS_LONG_NAME = "add-regions";
-    public static final String SUBTRACT_REGIONS_LONG_NAME = "subtract-regions";
     public static final String REGIONS_SET_RULE_LONG_NAME = "region-set-rule";
     public static final String REGIONS_MERGING_RULE_LONG_NAME = "region-merging-rule";
     public static final String REGION_PADDING_LONG_NAME = "region-padding";
-    public static final String MIN_OVERLAP_FRACTION_LONG_NAME = "min-overlap-fraction";
     public static final String REQUIRE_BREAKEND_OVERLAP_LONG_NAME = "require-breakend-overlap";
 
     @Argument(
@@ -94,22 +95,17 @@ public final class SVAnnotateOverlappingRegions extends VariantWalker {
     private GATKPath outputFile;
 
     @Argument(
-            doc = "Region name to use for annotation",
+            doc = "Region interval files, may be specified multiple times",
+            fullName = REGIONS_FILE_LONG_NAME
+    )
+    private List<GATKPath> regionPaths;
+
+    @Argument(
+            doc = "Region names. All values must be unique after converting to upper-case and must correspond with the " +
+                    "input order of --" + REGIONS_FILE_LONG_NAME,
             fullName = REGIONS_NAME_LONG_NAME
     )
-    private String regionName;
-
-    @Argument(
-            doc = "Interval files to add to annotated regions, can be specified multiple times",
-            fullName = ADD_REGIONS_LONG_NAME
-    )
-    private List<GATKPath> addRegionPaths;
-
-    @Argument(
-            doc = "Interval files to subtract from annotated regions, can be specified multiple times",
-            fullName = SUBTRACT_REGIONS_LONG_NAME
-    )
-    private List<GATKPath> subtractRegionPath;
+    private List<String> regionNames;
 
     @Argument(
             doc = "Region interval set rule",
@@ -133,32 +129,30 @@ public final class SVAnnotateOverlappingRegions extends VariantWalker {
     private int regionPadding = 0;
 
     @Argument(
-            doc = "Require at least this overlap fraction with the regions",
-            fullName = MIN_OVERLAP_FRACTION_LONG_NAME,
-            minValue = 0.,
-            maxValue = 1.,
-            optional = true
-    )
-    private double minOverlapFraction = 0.5;
-
-    @Argument(
-            doc = "Require both ends of the variant to be included in the regions",
+            doc = "Require both ends of the variant to be included in the region",
             fullName = REQUIRE_BREAKEND_OVERLAP_LONG_NAME,
             optional = true
     )
     private boolean requireBreakendOverlap = false;
 
     private SAMSequenceDictionary dictionary;
-    private final Map<String,IntervalTree<Object>> includedIntervalsTreeMap = new HashMap<>();
+    private List<String> formattedRegionNames;
+    private final Map<String, Map<String,IntervalTree<Object>>> includedIntervalsTreeMapMap = new HashMap<>();
     private VariantContextWriter writer;
 
     @Override
     public void onTraversalStart() {
         Utils.validateArg(!intervalArgumentCollection.intervalsSpecified(),
-                "Arguments -L and -XL are not supported, use --" + ADD_REGIONS_LONG_NAME + " and --" + SUBTRACT_REGIONS_LONG_NAME + " instead");
+                "Arguments -L and -XL are not supported, use --" + REGIONS_FILE_LONG_NAME + " instead");
+        Utils.validateArg(regionPaths.size() == regionNames.size(),
+                "Number of --" + REGIONS_NAME_LONG_NAME + " and --" + REGIONS_FILE_LONG_NAME + " arguments must be equal");
         dictionary = getHeaderForVariants().getSequenceDictionary();
         Utils.validateArg(dictionary != null, "Sequence dictionary not found in variants header");
-        loadIntervalTree();
+        formattedRegionNames = regionNames.stream().map(String::toUpperCase).collect(Collectors.toList());
+        Utils.validateArg(new HashSet<>(formattedRegionNames).size() == formattedRegionNames.size(), "Found duplicate region names (not case-sensitive)");
+        for (int i = 0; i < regionPaths.size(); i++) {
+            includedIntervalsTreeMapMap.put(formattedRegionNames.get(i), loadIntervalTree(regionPaths.get(i)));
+        }
         writer = createVCFWriter(outputFile);
         writeVCFHeader();
     }
@@ -169,29 +163,29 @@ public final class SVAnnotateOverlappingRegions extends VariantWalker {
         return null;
     }
 
-    private void loadIntervalTree() {
-        final List<String> addRegionStrings = addRegionPaths.stream().map(GATKPath::toString).collect(Collectors.toList());
+    private Map<String, IntervalTree<Object>> loadIntervalTree(final GATKPath path) {
         final GenomeLocParser parser = new GenomeLocParser(dictionary);
-        final List<SimpleInterval> intervals = IntervalUtils.convertGenomeLocsToSimpleIntervals(IntervalUtils.loadIntervals(addRegionStrings, intervalSetRule, intervalMergingRule, regionPadding, parser).toList());
-
+        final GenomeLocSortedSet includeSet = IntervalUtils.loadIntervals(Collections.singletonList(path.toString()), intervalSetRule, intervalMergingRule, regionPadding, parser);
+        final List<SimpleInterval> intervals = IntervalUtils.convertGenomeLocsToSimpleIntervals(includeSet.toList());
+        Utils.validate(!intervals.isEmpty(), "Resulting intervals are empty");
+        final Map<String, IntervalTree<Object>> includedIntervalsTreeMap = new HashMap<>();
         for (final SimpleInterval interval : intervals) {
             includedIntervalsTreeMap.putIfAbsent(interval.getContig(), new IntervalTree<>());
             includedIntervalsTreeMap.get(interval.getContig()).put(interval.getStart(), interval.getEnd(), null);
         }
+        return includedIntervalsTreeMap;
     }
 
     @Override
-    public void apply(VariantContext variant, final ReadsContext readsContext,
+    public void apply(final VariantContext variant, final ReadsContext readsContext,
                       final ReferenceContext referenceContext, final FeatureContext featureContext) {
         SVCallRecord record = SVCallRecordUtils.create(variant);
-        if (intervalIsIncluded(record, includedIntervalsTreeMap)) {
-            final VariantContextBuilder builder = new VariantContextBuilder(variant);
-            final List<String> regions = new ArrayList<>(variant.getAttributeAsStringList(GATKSVVCFConstants.REGIONS_KEY, null));
-            regions.add(regionName);
-            builder.attribute(GATKSVVCFConstants.REGIONS_KEY, regions);
-            variant = builder.make();
+        final VariantContextBuilder builder = new VariantContextBuilder(variant);
+        for (final Map.Entry<String, Map<String, IntervalTree<Object>>> entry : includedIntervalsTreeMapMap.entrySet()) {
+            final double overlap = intervalOverlap(record, entry.getValue());
+            builder.attribute(entry.getKey(), overlap);
         }
-        writer.add(variant);
+        writer.add(builder.make());
     }
 
     private void writeVCFHeader() {
@@ -200,35 +194,40 @@ public final class SVAnnotateOverlappingRegions extends VariantWalker {
         for (final VCFHeaderLine line : inputHeader.getMetaDataInInputOrder()) {
             header.addMetaDataLine(line);
         }
-        header.addMetaDataLine(new VCFInfoHeaderLine(GATKSVVCFConstants.REGIONS_KEY, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "List of overlapping regions"));
+        for (final String name : formattedRegionNames) {
+            header.addMetaDataLine(new VCFInfoHeaderLine(name, 1, VCFHeaderLineType.Float, "Fraction overlap of region " + name));
+        }
         writer.writeHeader(header);
     }
 
     @VisibleForTesting
-    protected <T> boolean intervalIsIncluded(final SVCallRecord call, final Map<String, IntervalTree<T>> includedIntervalTreeMap) {
+    protected <T> double intervalOverlap(final SVCallRecord call, final Map<String, IntervalTree<T>> includedIntervalTreeMap) {
         final IntervalTree<T> startTree = includedIntervalTreeMap.get(call.getContigA());
-        // Contig A included
-        if (startTree == null) {
-            return false;
+        // Contig A included?
+        if (startTree == null || startTree.size() == 0) {
+            return 0;
         }
         final IntervalTree<T> endTree = includedIntervalTreeMap.get(call.getContigB());
-        // Contig B included
-        if (endTree == null) {
-            return false;
+        // Contig B included?
+        if (endTree == null || endTree.size() == 0) {
+            return 0;
         }
-        // Breakends both included, if required
-        if (requireBreakendOverlap && !(startTree.overlappers(call.getPositionA(), call.getPositionA() + 1).hasNext()
-                && endTree.overlappers(call.getPositionB(), call.getPositionB() + 1).hasNext())) {
-            return false;
+        // Breakends both included (if required)?
+        final boolean overlapsA = startTree.overlappers(call.getPositionA(), call.getPositionA() + 1).hasNext();
+        final boolean overlapsB = endTree.overlappers(call.getPositionB(), call.getPositionB() + 1).hasNext();
+        if (requireBreakendOverlap && !(overlapsA && overlapsB)) {
+            return 0;
         }
-        // Can include all interchromosomal variants at this point
-        if (!call.getContigA().equals(call.getContigB())) {
-            return true;
+        // Require BNDs/inter-chromosomals to overlap at both ends, regardless of requireBreakendOverlap
+        if (call.getType() == StructuralVariantType.BND || !call.isIntrachromosomal()) {
+            if (overlapsA && overlapsB) {
+                return 1;
+            } else {
+                return 0;
+            }
         }
-        // Check overlap fraction
-        final long overlapLength = totalOverlap(call.getPositionA(), call.getPositionB(), startTree);
-        final double overlapFraction = overlapLength / (double) (call.getPositionB() - call.getPositionA());
-        return overlapFraction >= minOverlapFraction;
+        // Return overlap as fraction of SVLEN
+        return totalOverlap(call.getPositionA(), call.getPositionA() + call.getLength() - 1, startTree) / (double) call.getLength();
     }
 
     @VisibleForTesting

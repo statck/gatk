@@ -4,10 +4,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.*;
-import org.broadinstitute.barclay.argparser.Argument;
-import org.broadinstitute.barclay.argparser.ArgumentCollection;
-import org.broadinstitute.barclay.argparser.CommandLineProgramProperties;
-import org.broadinstitute.barclay.argparser.ExperimentalFeature;
+import org.broadinstitute.barclay.argparser.*;
 import org.broadinstitute.barclay.help.DocumentedFeature;
 import org.broadinstitute.hellbender.cmdline.StandardArgumentDefinitions;
 import org.broadinstitute.hellbender.cmdline.programgroups.StructuralVariantDiscoveryProgramGroup;
@@ -154,7 +151,7 @@ import static org.broadinstitute.hellbender.tools.walkers.sv.JointGermlineCNVSeg
         oneLineSummary = "Clusters structural variants",
         programGroup = StructuralVariantDiscoveryProgramGroup.class
 )
-@ExperimentalFeature
+@BetaFeature
 @DocumentedFeature
 public final class SVCluster extends MultiVariantWalker {
     public static final String VARIANT_PREFIX_LONG_NAME = "variant-prefix";
@@ -365,12 +362,12 @@ public final class SVCluster extends MultiVariantWalker {
         header.addMetaDataLine(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY));
         header.addMetaDataLine(GATKSVVCFHeaderLines.getInfoLine(GATKSVVCFConstants.SVLEN));
         header.addMetaDataLine(GATKSVVCFHeaderLines.getInfoLine(GATKSVVCFConstants.SVTYPE));
-        header.addMetaDataLine(new VCFInfoHeaderLine(GATKSVVCFConstants.END2_ATTRIBUTE, 1, VCFHeaderLineType.String, "Second position"));
+        header.addMetaDataLine(new VCFInfoHeaderLine(GATKSVVCFConstants.END2_ATTRIBUTE, 1, VCFHeaderLineType.Integer, "Second position"));
         header.addMetaDataLine(new VCFInfoHeaderLine(GATKSVVCFConstants.CONTIG2_ATTRIBUTE, 1, VCFHeaderLineType.String, "Second contig"));
         header.addMetaDataLine(new VCFInfoHeaderLine(GATKSVVCFConstants.STRANDS_ATTRIBUTE, 1, VCFHeaderLineType.String, "First and second strands"));
-        header.addMetaDataLine(new VCFInfoHeaderLine("##INFO=<ID=" + GATKSVVCFConstants.ALGORITHMS_ATTRIBUTE + ",Number=.,Type=String,Description=\"Source algorithms\">", header.getVCFHeaderVersion()));
+        header.addMetaDataLine(new VCFInfoHeaderLine(GATKSVVCFConstants.ALGORITHMS_ATTRIBUTE, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "Source algorithms"));
         if (!omitMembers) {
-            header.addMetaDataLine(new VCFInfoHeaderLine("##INFO=<ID=" + GATKSVVCFConstants.CLUSTER_MEMBER_IDS_KEY + ",Number=.,Type=String,Description=\"Cluster variant ids\">", header.getVCFHeaderVersion()));
+            header.addMetaDataLine(new VCFInfoHeaderLine(GATKSVVCFConstants.CLUSTER_MEMBER_IDS_KEY, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "Cluster variant ids"));
         }
 
         // Required format lines
