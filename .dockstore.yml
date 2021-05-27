@@ -74,6 +74,7 @@ workflows:
        branches:
          - master
          - ah_var_store
+         - kc_pre_prefix
    - name: GvsImportGenomes
      subclass: WDL
      primaryDescriptorPath: /scripts/variantstore/wdl/GvsImportGenomes.wdl
@@ -92,6 +93,7 @@ workflows:
        branches:
          - master
          - ah_var_store
+         - kc_pre_prefix
    - name: MitochondriaPipeline
      subclass: WDL
      primaryDescriptorPath: /scripts/mitochondria_m2_wdl/MitochondriaPipeline.wdl
