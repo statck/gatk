@@ -97,7 +97,7 @@ public class ExtractFeatures extends ExtractTool {
         extraHeaderLines.add(GATKVCFHeaderLines.getFilterLine(GATKVCFConstants.LOW_QUAL_FILTER_NAME));
 
         VCFHeader header = CommonCode.generateVcfHeader(
-            new HashSet<>(), reference.getSequenceDictionary(), extraHeaderLines);
+            new HashSet<>(), directlyAccessEngineReferenceDataSource().getSequenceDictionary(), extraHeaderLines);
 
         final List<SimpleInterval> traversalIntervals = getTraversalIntervals();
 
@@ -116,7 +116,7 @@ public class ExtractFeatures extends ExtractTool {
             vcfWriter,
             header,
             annotationEngine,
-            reference,
+            directlyAccessEngineReferenceDataSource(),
             fqAltAlleleTable,
             sampleTableRef,
             traversalIntervals,

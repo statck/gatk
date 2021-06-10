@@ -61,8 +61,7 @@ public class ExtractCohortEngine {
     private Map<Long, String> sampleIdToName;
 
     private final ReferenceConfidenceVariantContextMerger variantContextMerger;
-    private final boolean disableGnarlyGenotyper;
-    private final GnarlyGenotyperEngine gnarlyGenotyper;
+    private final boolean emitPLs;
 
     private int totalNumberOfVariants = 0;
     private int totalNumberOfSites = 0;
@@ -99,7 +98,6 @@ public class ExtractCohortEngine {
                                final ProgressMeter progressMeter,
                                final String filterSetName,
                                final boolean emitPLs,
-                               final boolean disableGnarlyGenotyper,
                                final boolean performGenotypeVQSLODFiltering,
                                final boolean excludeFilteredSites
     ) {
@@ -133,9 +131,7 @@ public class ExtractCohortEngine {
         this.filterSetName = filterSetName;
 
         this.variantContextMerger = new ReferenceConfidenceVariantContextMerger(annotationEngine, vcfHeader);
-        this.disableGnarlyGenotyper = disableGnarlyGenotyper;
-        this.gnarlyGenotyper = disableGnarlyGenotyper ? null : new GnarlyGenotyperEngine(false, 30, false, emitPLs, true);
-
+        this.emitPLs = emitPLs;
     }
 
     private final static double INDEL_QUAL_THRESHOLD = GenotypeCalculationArgumentCollection.DEFAULT_STANDARD_CONFIDENCE_FOR_CALLING - 10 * Math.log10(HomoSapiensConstants.INDEL_HETEROZYGOSITY);
@@ -418,27 +414,17 @@ public class ExtractCohortEngine {
             unmergedCalls.add(createRefSiteVariantContextWithGQ(missingSample, contig, start, refAllele, MISSING_CONF_THRESHOLD));
         }
 
-        // we only need to retain the NonRefSymbolicAllele if we are using gnarly
-        boolean removeNonRefSymbolicAllele = this.disableGnarlyGenotyper;
-
         final VariantContext mergedVC = variantContextMerger.merge(
                 unmergedCalls,
                 new SimpleInterval(contig, (int) start, (int) start),
                 refAllele.getBases()[0],
-                removeNonRefSymbolicAllele,
+                true,
                 false,
                 true);
 
-        final VariantContext genotypedVC = this.disableGnarlyGenotyper ? mergedVC : gnarlyGenotyper.finalizeGenotype(mergedVC);
-
-        // Gnarly will indicate dropping a site by returning a null from the finalizeGenotype method
-        if (!this.disableGnarlyGenotyper && genotypedVC == null) {
-            return;
-        }
-
         // apply VQSLod-based filters
         VariantContext filteredVC =
-                noVqslodFilteringRequested ? genotypedVC : filterSiteByAlleleSpecificVQSLOD(genotypedVC, vqsLodMap, yngMap, performGenotypeVQSLODFiltering);
+                noVqslodFilteringRequested ? mergedVC : filterSiteByAlleleSpecificVQSLOD(mergedVC, vqsLodMap, yngMap, performGenotypeVQSLODFiltering);
 
         // apply SiteQC-based filters, if they exist
         if ( siteFilterMap.containsKey(location) ) {
@@ -675,7 +661,7 @@ public class ExtractCohortEngine {
         }
 
         final String callPL = sampleRecord.getCallPL();
-        if ( callPL != null ) {
+        if ( this.emitPLs && callPL != null ) {
             genotypeBuilder.PL(Arrays.stream(callPL.split(SchemaUtils.MULTIVALUE_FIELD_DELIMITER)).mapToInt(Integer::parseInt).toArray());
         }
 

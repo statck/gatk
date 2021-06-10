@@ -295,7 +295,7 @@ public class ExtractFeaturesEngine {
 
         int samplesMinusVariants = numSamples - (hets + homvars);
         GenotypeCounts gcApprox = new GenotypeCounts(samplesMinusVariants, hets, homvars);
-        double excessHetApprox = ExcessHet.calculateEH(gcApprox, numSamples).getRight();
+        double excessHetApprox = ExcessHet.calculateEH(null, gcApprox, numSamples).getRight();
         if (excessHetApprox > excess_het_threshold) {
             builder.filter(GATKVCFConstants.EXCESS_HET_KEY);
         }

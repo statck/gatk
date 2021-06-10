@@ -87,13 +87,6 @@ public class ExtractCohort extends ExtractTool {
     private boolean emitPLs = false;
 
     @Argument(
-            fullName = "disable-gnarly",
-            doc = "Disable use of GnarlyGenotyper",
-            optional = true
-    )
-    private boolean disableGnarlyGenotyper = true;
-
-    @Argument(
             fullName = "vqslod-filter-genotypes",
             doc = "Should VQSLOD filtering be applied at the genotype level",
             optional = true
@@ -173,7 +166,7 @@ public class ExtractCohort extends ExtractTool {
         SampleList sampleList = new SampleList(sampleTableName, sampleFileName, projectID, printDebugInformation, "extract-cohort");
         Map<Long, String> sampleIdToName = sampleList.getMap();
 
-        VCFHeader header = CommonCode.generateVcfHeader(new HashSet<>(sampleIdToName.values()), reference.getSequenceDictionary(), extraHeaderLines);
+        VCFHeader header = CommonCode.generateVcfHeader(new HashSet<>(sampleIdToName.values()), directlyAccessEngineReferenceDataSource().getSequenceDictionary(), extraHeaderLines);
 
         final List<SimpleInterval> traversalIntervals = getTraversalIntervals();
 
@@ -206,7 +199,7 @@ public class ExtractCohort extends ExtractTool {
                 vcfWriter,
                 header,
                 annotationEngine,
-                reference,
+                directlyAccessEngineReferenceDataSource(),
                 sampleIdToName,
                 mode,
                 cohortTable,
@@ -223,7 +216,6 @@ public class ExtractCohort extends ExtractTool {
                 progressMeter,
                 filterSetName,
                 emitPLs,
-                disableGnarlyGenotyper,
                 performGenotypeVQSLODFiltering,
                 excludeFilteredSites);
 

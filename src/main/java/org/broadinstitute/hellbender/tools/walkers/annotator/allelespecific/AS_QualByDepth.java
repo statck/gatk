@@ -4,7 +4,9 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+
 import org.apache.commons.lang.StringUtils;
 import org.broadinstitute.barclay.help.DocumentedFeature;
 import org.broadinstitute.hellbender.engine.ReferenceContext;
@@ -125,7 +127,7 @@ public class AS_QualByDepth implements InfoFieldAnnotation, ReducibleAnnotation,
         final String[] rawDataPerAllele = rawDataString.split(AnnotationUtils.ALLELE_SPECIFIC_SPLIT_REGEX);
         for (int i=0; i<rawDataPerAllele.length; i++) {
             final String alleleData = rawDataPerAllele[i];
-            myData.putAttribute(myData.getAlleles().get(i), (alleleData.isEmpty() || alleleData.equals(AnnotationUtils.MISSING_VALUE)) ? null : Integer.parseInt(alleleData));
+            myData.putAttribute(myData.getAlleles().get(i), (alleleData.isEmpty() || alleleData.equals(VCFConstants.MISSING_VALUE_v4)) ? null : Integer.parseInt(alleleData));
         }
     }
 
