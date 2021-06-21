@@ -70,7 +70,7 @@ workflow GvsExtractCallset {
                 reference_index          = reference_index,
                 reference_dict           = reference_dict,
                 fq_samples_to_extract_table = fq_samples_to_extract_table,
-                intervals                = SplitIntervals.interval_files[i],
+                intervals                = SplitIntervals.interval_files[127],
                 fq_cohort_extract_table  = fq_cohort_extract_table,
                 read_project_id          = query_project,
                 do_not_filter_override   = do_not_filter_override,
