@@ -62,7 +62,7 @@ workflow GvsExtractCallset {
             service_account_json = service_account_json
     }
 
-    scatter(i in range(scatter_count) ) {
+    # scatter(i in range(scatter_count) ) {
         call ExtractTask {
             input:
                 gatk_override            = gatk_override,
@@ -83,16 +83,16 @@ workflow GvsExtractCallset {
                 excluded_intervals       = excluded_intervals,
                 emit_pls                 = emit_pls,
                 service_account_json     = service_account_json,
-                output_file              = "${output_file_base_name}_${i}.vcf.gz",
+                output_file              = "${output_file_base_name}_127.vcf.gz",
                 output_gcs_dir           = output_gcs_dir,
                 local_disk               = local_disk_for_extract,
                 last_modified_timestamps = [fq_samples_to_extract_table_datetime.last_modified_timestamp, fq_cohort_extract_table_datetime.last_modified_timestamp]
         }
-    }
+    # }
 
     output {
-      Array[File] output_vcfs = ExtractTask.output_vcf
-      Array[File] output_vcf_indexes = ExtractTask.output_vcf_index
+      File output_vcfs = ExtractTask.output_vcf
+      File output_vcf_indexes = ExtractTask.output_vcf_index
     }
 }
 

@@ -75,6 +75,7 @@ workflows:
          - master
          - ah_var_store
          - kc_max_retries
+	 - ah_rerun_shard_127
    - name: GvsImportGenomes
      subclass: WDL
      primaryDescriptorPath: /scripts/variantstore/wdl/GvsImportGenomes.wdl
