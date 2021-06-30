@@ -93,7 +93,7 @@ workflows:
        branches:
          - master
          - ah_var_store
-         - rc-318-sites-only-filtered-vcf-then-annotate-wdl
+         - rc_create_vat
    - name: GvsSitesOnlyVCF
      subclass: WDL
      primaryDescriptorPath: /scripts/variantstore/wdl/GvsSitesOnlyVCF.wdl
@@ -101,7 +101,7 @@ workflows:
        - /scripts/variantstore/wdl/GvsSitesOnlyVCF.example.inputs.json
      filters:
        branches:
-         - rc-318-sites-only-filtered-vcf-then-annotate-wdl
+         - rc_create_vat
    - name: MitochondriaPipeline
      subclass: WDL
      primaryDescriptorPath: /scripts/mitochondria_m2_wdl/MitochondriaPipeline.wdl
