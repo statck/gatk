@@ -252,10 +252,10 @@ public final class ExcessHetUnitTest extends GATKBaseTest {
                 {17, 81, 2, 0.9304235455950692},
                 {21, 79, 0, 0.3096036754839548},
                 // The following test cases were also generated using the python implementation.
-                {707, 359, 9, 0.},
-                {804, 599, 70, 0.},
-                {684, 559, 629, 1.},
-                {192, 835, 763, 1.},
+                {707, 359, 9, 0.},                      // python implementation returns 4.5660915932231366E-67, which we take as 0.
+                {804, 599, 70, 0.},                     // python implementation returns 4.239662903004714E-24, which we take as 0.
+                {684, 559, 629, 1.},                    // python implementation returns 1.000000000002042, which we take as 1.
+                {192, 835, 763, 1.},                    // python implementation returns 1.0000000000013074, which we take as 1.
                 {723, 277, 754, 0.9999982776347127},    // for testing to DELTA_PRECISION = 1E-6
                 {537, 845, 72, 0.14763417247333427},
                 {847, 431, 448, 0.7957628300988617},
@@ -266,7 +266,16 @@ public final class ExcessHetUnitTest extends GATKBaseTest {
                 {552, 438, 207, 0.9367121245319978},
                 {886, 812, 216, 0.1488013326311986},
                 {537, 845, 72, 0.14763417247333427},
-                {8700, 3186, 5918, 0.46111947799744585}
+                {8700, 3186, 5918, 0.46111947799744585},
+                // The following test cases were also generated using the python implementation and
+                // further guard against the possibility of overflow as seen in
+                // https://github.com/samtools/htsjdk/issues/44.
+                // This implementation doesn't have a problem, since we cast to double when calculating the midpoint,
+                // but see e.g. https://github.com/samtools/htsjdk/pull/70.
+                {1998, 1, 998001, 0.7359430663641368},
+                {19800, 100, 980100, 0.5267641864418983},
+                {180000, 10000, 810000, 0.5028886002589862},
+                {500000, 250000, 250000, 0.5009973527964665}
         };
     }
 
