@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.IntStream;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -52,9 +53,27 @@ public final class ExcessHetUnitTest extends GATKBaseTest {
     }
 
     @Test
+    public void testPositiveZeroPhredScore() {
+        // we generate a large number of hom-ref genotypes to drive the p-value to 1 and the Phred score to 0
+        final int numHomref = 100;
+        final VariantContext vc = makeVC("2", Arrays.asList(A_REF, T),
+                IntStream.range(0, numHomref + 1).boxed().map(i -> makeG("s" + i, A_REF, T, 0, 1000, 1000)).toArray(Genotype[]::new));
+
+        final double result = ExcessHet.calculateEH(vc, vc.getGenotypes()).getValue();
+        final double expected = 0.; // calculated using the python implementation at https://github.com/broadinstitute/gatk/issues/7392#issue-959501711
+        Assert.assertEquals(result, expected, DELTA_PRECISION, "Pass");
+
+        final Map<String, Object> annots = new ExcessHet().annotate(null, vc, null);
+        Assert.assertEquals(annots.keySet(), Collections.singleton(GATKVCFConstants.EXCESS_HET_KEY), "annots");
+        Assert.assertEquals(annots.values().size(), 1, "size");
+        Assert.assertEquals(Double.parseDouble((String) annots.values().iterator().next()), expected, DELTA_PRECISION_PARSE, "het");
+        Assert.assertEquals((String) annots.values().iterator().next(), "0.0000", "zero"); // guards against -0.0000 being returned
+    }
+
+    @Test
     public void testExcessHetForMultiallelicVCCompoundHets() {
-        //make sure that compound gets (with no ref) don't add to het count
-        VariantContext test1 = makeVC("1", Arrays.asList(A_REF, T, C),
+        // make sure that compound gets (with no ref) don't add to het count
+        final VariantContext vc = makeVC("1", Arrays.asList(A_REF, T, C),
                 makeG("s1", A_REF, T, 2530, 0, 7099, 366, 3056, 14931),
                 makeG("s2", T, T, 7099, 2530, 0, 7099, 366, 3056),
                 makeG("s3", T, C, 7099, 2530, 7099, 3056, 0, 14931),
@@ -66,15 +85,15 @@ public final class ExcessHetUnitTest extends GATKBaseTest {
                 makeG("s9", T, T, 7099, 2530, 0, 7099, 366, 3056),
                 makeG("s10", A_REF, T, 2530, 0, 7099, 366, 3056, 14931));
 
-        final double result = ExcessHet.calculateEH(test1, test1.getGenotypes()).getValue();
+        final double result = ExcessHet.calculateEH(vc, vc.getGenotypes()).getValue();
         final double expected = 2.8389324060524004; // calculated using the python implementation at https://github.com/broadinstitute/gatk/issues/7392#issue-959501711
         Assert.assertEquals(result, expected, DELTA_PRECISION, "Pass");
     }
 
     @Test
     public void testExcessHetForMultiallelicVCCompoundHetsRefAltFlip() {
-        //make sure that compound gets (with no ref) don't add to het count
-        VariantContext test1 = makeVC("1", Arrays.asList(A_REF, T, C),
+        // make sure that compound gets (with no ref) don't add to het count
+        final VariantContext vc = makeVC("1", Arrays.asList(A_REF, T, C),
                 makeG("s1", A_REF, T, 2530, 0, 7099, 366, 3056, 14931),
                 makeG("s2", T, T, 7099, 2530, 0, 7099, 366, 3056),
                 makeG("s3", T, C, 7099, 2530, 7099, 3056, 0, 14931),
@@ -86,15 +105,15 @@ public final class ExcessHetUnitTest extends GATKBaseTest {
                 makeG("s9", T, T, 7099, 2530, 0, 7099, 366, 3056),
                 makeG("s10", A_REF, T, 2530, 0, 7099, 366, 3056, 14931));
 
-        final double result = ExcessHet.calculateEH(test1, test1.getGenotypes()).getValue();
+        final double result = ExcessHet.calculateEH(vc, vc.getGenotypes()).getValue();
         final double expected = 2.8389324060524004; // calculated using the python implementation at https://github.com/broadinstitute/gatk/issues/7392#issue-959501711
         Assert.assertEquals(result, expected, DELTA_PRECISION, "Pass");
     }
 
     @Test
     public void testExcessHetForMultiallelicVCDifferentAlts() {
-        //make sure that hets with different alternate alleles all get counted
-        VariantContext test = makeVC("2", Arrays.asList(A_REF, T, C),
+        // make sure that hets with different alternate alleles all get counted
+        final VariantContext vc = makeVC("2", Arrays.asList(A_REF, T, C),
                 makeG("s1", A_REF, C, 4878, 1623, 11297, 0, 7970, 8847),
                 makeG("s2", A_REF, T, 2530, 0, 7099, 366, 3056, 14931),
                 makeG("s3", A_REF, T, 3382, 0, 6364, 1817, 5867, 12246),
@@ -106,12 +125,12 @@ public final class ExcessHetUnitTest extends GATKBaseTest {
                 makeG("s9", A_REF, T, 5732, 0, 10876, 6394, 11408, 17802),
                 makeG("s10", A_REF, T, 2780, 0, 25045, 824, 23330, 30939));
 
-        final double result = ExcessHet.calculateEH(test, test.getGenotypes()).getValue();
+        final double result = ExcessHet.calculateEH(vc, vc.getGenotypes()).getValue();
         final double expected = 22.562985944843152; // calculated using the python implementation at https://github.com/broadinstitute/gatk/issues/7392#issue-959501711
         Assert.assertEquals(result, expected, DELTA_PRECISION, "Pass");
 
-        //test the annotate method
-        final Map<String, Object> annots = new ExcessHet().annotate(null, test, null);
+        // test the annotate method
+        final Map<String, Object> annots = new ExcessHet().annotate(null, vc, null);
         Assert.assertEquals(annots.keySet(), Collections.singleton(GATKVCFConstants.EXCESS_HET_KEY), "annots");
         Assert.assertEquals(annots.values().size(), 1, "size");
         Assert.assertEquals(Double.parseDouble((String) annots.values().iterator().next()), expected, DELTA_PRECISION_PARSE, "het");
@@ -119,8 +138,8 @@ public final class ExcessHetUnitTest extends GATKBaseTest {
 
     @Test
     public void testFounderIDsAndPedigreeFile() {
-        //make sure that hets with different alternate alleles all get counted
-        final VariantContext test = makeVC("2", Arrays.asList(A_REF, T, C),
+        // make sure that hets with different alternate alleles all get counted
+        final VariantContext vc = makeVC("2", Arrays.asList(A_REF, T, C),
                 makeG("s1", A_REF, C, 4878, 1623, 11297, 0, 7970, 8847),
                 makeG("s2", A_REF, T, 2530, 0, 7099, 366, 3056, 14931),
                 makeG("s3", A_REF, T, 3382, 0, 6364, 1817, 5867, 12246),
@@ -134,18 +153,18 @@ public final class ExcessHetUnitTest extends GATKBaseTest {
 
         final Set<String> founderIDs = new HashSet<>(Arrays.asList("s1", "s2", "s3", "s4", "s5"));
 
-        final double result = ExcessHet.calculateEH(test, test.getGenotypes(founderIDs)).getValue();
+        final double result = ExcessHet.calculateEH(vc, vc.getGenotypes(founderIDs)).getValue();
         final double expected = 8.96250562461638; // calculated using the python implementation at https://github.com/broadinstitute/gatk/issues/7392#issue-959501711
         Assert.assertEquals(result, expected, DELTA_PRECISION, "Pass");
 
-        //test the annotate method with FounderIDs
-        final Map<String, Object> annots = new ExcessHet(founderIDs).annotate(null, test, null);
+        // test the annotate method with FounderIDs
+        final Map<String, Object> annots = new ExcessHet(founderIDs).annotate(null, vc, null);
         Assert.assertEquals(annots.keySet(), Collections.singleton(GATKVCFConstants.EXCESS_HET_KEY), "annots");
         Assert.assertEquals(annots.values().size(), 1, "size");
         Assert.assertEquals(Double.parseDouble((String) annots.values().iterator().next()), expected, DELTA_PRECISION_PARSE, "het");
 
-        //test the annotate method with a Pedigree File
-        final Map<String, Object> annotsPedigree = new ExcessHet(getTestFileGATKPath("testPedigree.ped")).annotate(null, test, null);
+        // test the annotate method with a Pedigree File
+        final Map<String, Object> annotsPedigree = new ExcessHet(getTestFileGATKPath("testPedigree.ped")).annotate(null, vc, null);
         Assert.assertEquals(annotsPedigree.keySet(), Collections.singleton(GATKVCFConstants.EXCESS_HET_KEY), "annots");
         Assert.assertEquals(annotsPedigree.values().size(), 1, "size");
         Assert.assertEquals(Double.parseDouble((String) annotsPedigree.values().iterator().next()), expected, DELTA_PRECISION_PARSE, "het");
@@ -233,7 +252,7 @@ public final class ExcessHetUnitTest extends GATKBaseTest {
 
         Assert.assertTrue(Math.abs(singletonValue) < Math.abs(hetsValue), String.format("singleton=%f allHets=%f", singletonValue, hetsValue));
 
-        //Since all hets is such an extreme case and the sample size is large here, we know that the p-value should be 0
+        // Since all hets is such an extreme case and the sample size is large here, we know that the p-value should be 0
         Assert.assertEquals(hetsValue, ExcessHet.PHRED_SCALED_MIN_P_VALUE, DELTA_PRECISION, "P-value of 0 should be phred scaled to " + ExcessHet.PHRED_SCALED_MIN_P_VALUE);
     }
 

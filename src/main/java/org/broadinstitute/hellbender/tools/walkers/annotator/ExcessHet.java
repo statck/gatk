@@ -95,12 +95,12 @@ public final class ExcessHet extends PedigreeAnnotation implements InfoFieldAnno
 
         final double pval = exactTest(hetCount, refCount, homCount);
 
-        //If the actual phredPval would be infinity we will probably still filter out just a very large number
-        //Since the method does not guarantee precision for any p-value smaller than 1e-16, we can return the phred scaled version
+        // If the actual phredPval would be infinity we will probably still filter out just a very large number
+        // Since the method does not guarantee precision for any p-value smaller than 1e-16, we can return the phred scaled version
         if (pval < 10e-60) {
             return Pair.of(sampleCount, PHRED_SCALED_MIN_P_VALUE);
         }
-        final double phredPval = -10.0 * Math.log10(pval);
+        final double phredPval = -10.0 * Math.log10(pval) + 0.; // We add 0. to prevent -0.0000 from being output
 
         return Pair.of(sampleCount, phredPval);
     }
@@ -126,7 +126,7 @@ public final class ExcessHet extends PedigreeAnnotation implements InfoFieldAnno
         Utils.validateArg(refCount >= 0, "Ref count cannot be less than 0");
         Utils.validateArg(homCount >= 0, "Hom count cannot be less than 0");
 
-        //Split into observed common allele and rare allele
+        // Split into observed common allele and rare allele
         final int obsHomR;
         final int obsHomC;
         if (refCount < homCount) {
@@ -142,7 +142,7 @@ public final class ExcessHet extends PedigreeAnnotation implements InfoFieldAnno
 
         final double[] probs = new double[rareCopies + 1];
 
-        //Find (something close to the) mode for the midpoint
+        // Find (something close to the) mode for the midpoint
         int mid = (int) Math.floor(rareCopies * (2.0 * N - rareCopies) / (2.0 * N - 1.0));
         if ((mid % 2) != (rareCopies % 2)) {
             mid++;
@@ -151,7 +151,7 @@ public final class ExcessHet extends PedigreeAnnotation implements InfoFieldAnno
         probs[mid] = 1.0;
         double mysum = 1.0;
 
-        //Calculate probabilities from midpoint down
+        // Calculate probabilities from midpoint down
         int currHets = mid;
         int currHomR = (rareCopies - mid) / 2;
         int currHomC = N - currHets - currHomR;
@@ -165,13 +165,13 @@ public final class ExcessHet extends PedigreeAnnotation implements InfoFieldAnno
             probs[currHets - 2] = potentialProb;
             mysum = mysum + probs[currHets - 2];
 
-            //2 fewer hets means one additional homR and homC each
+            // 2 fewer hets means one additional homR and homC each
             currHets = currHets - 2;
             currHomR = currHomR + 1;
             currHomC = currHomC + 1;
         }
 
-        //Calculate probabilities from midpoint up
+        // Calculate probabilities from midpoint up
         currHets = mid;
         currHomR = (rareCopies - mid) / 2;
         currHomC = N - currHets - currHomR;
@@ -185,14 +185,14 @@ public final class ExcessHet extends PedigreeAnnotation implements InfoFieldAnno
             probs[currHets + 2] = potentialProb;
             mysum = mysum + probs[currHets + 2];
 
-            //2 more hets means 1 fewer homR and homC each
+            // 2 more hets means 1 fewer homR and homC each
             currHets = currHets + 2;
             currHomR = currHomR - 1;
             currHomC = currHomC - 1;
         }
 
         final double rightPval = probs[hetCount] / mysum;
-        //Check if we observed the highest possible number of hets
+        // Check if we observed the highest possible number of hets
         if (hetCount == rareCopies) {
             return Math.max(0., Math.min(1., rightPval));
         }
