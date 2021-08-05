@@ -23,23 +23,23 @@ import java.util.List;
 public class StreamingPythonScriptExecutorUnitTest extends GATKBaseTest {
     private static final String NL = System.lineSeparator();
 
-    @DataProvider(name="supportedPythonVersions")
+    @DataProvider(name = "supportedPythonVersions")
     public Object[][] getSupprtedPythonExecutableNames() {
-        return new Object[][] {
-                { PythonScriptExecutor.PythonExecutableName.PYTHON },
-                { PythonScriptExecutor.PythonExecutableName.PYTHON3 },
+        return new Object[][]{
+                {PythonScriptExecutor.PythonExecutableName.PYTHON},
+                {PythonScriptExecutor.PythonExecutableName.PYTHON3},
         };
     }
 
-    @Test(groups = "python", dataProvider="supportedPythonVersions")
+    @Test(groups = "python", dataProvider = "supportedPythonVersions")
     public void testPythonExists(final PythonScriptExecutor.PythonExecutableName executableName) {
         Assert.assertTrue(
-                new StreamingPythonScriptExecutor<String>(executableName,true).externalExecutableExists(),
+                new StreamingPythonScriptExecutor<String>(executableName, true).externalExecutableExists(),
                 "Python not found in environment ${PATH}"
         );
     }
 
-    @Test(groups = "python", dataProvider="supportedPythonVersions", dependsOnMethods = "testPythonExists", timeOut=10000)
+    @Test(groups = "python", dataProvider = "supportedPythonVersions", dependsOnMethods = "testPythonExists", timeOut = 10000)
     public void testExecuteCommand(final PythonScriptExecutor.PythonExecutableName executableName) throws IOException {
         // create a temporary output file
         final File tempFile = createTempFile("pythonExecuteCommandTest", "txt");
@@ -50,7 +50,7 @@ public class StreamingPythonScriptExecutorUnitTest extends GATKBaseTest {
         final String CLOSE_FILE_SCRIPT = "tempFile.close()" + NL;
 
         final StreamingPythonScriptExecutor<String> streamingPythonExecutor =
-                new StreamingPythonScriptExecutor<>(executableName,true);
+                new StreamingPythonScriptExecutor<>(executableName, true);
         Assert.assertNotNull(streamingPythonExecutor);
 
         Assert.assertTrue(streamingPythonExecutor.start(Collections.emptyList()));
@@ -58,24 +58,23 @@ public class StreamingPythonScriptExecutorUnitTest extends GATKBaseTest {
         try {
             streamingPythonExecutor.sendSynchronousCommand(WRITE_FILE_SCRIPT);
             streamingPythonExecutor.sendSynchronousCommand(CLOSE_FILE_SCRIPT);
-        }
-        finally {
+        } finally {
             streamingPythonExecutor.terminate();
             Assert.assertFalse(streamingPythonExecutor.getProcess().isAlive());
         }
 
         // read the temp file in and validate
-        try (final FileInputStream fis= new FileInputStream(tempFile);
+        try (final FileInputStream fis = new FileInputStream(tempFile);
              final BufferedLineReader br = new BufferedLineReader(fis)) {
             Assert.assertEquals(br.readLine(), "Hello world");
         }
     }
 
-    @Test(groups = "python", dataProvider="supportedPythonVersions", timeOut = 50000, expectedExceptions={PythonScriptExecutorException.class})
+    @Test(groups = "python", dataProvider = "supportedPythonVersions", timeOut = 50000, expectedExceptions = {PythonScriptExecutorException.class})
     public void testNckWithMessage(final PythonScriptExecutor.PythonExecutableName executableName) throws PythonScriptExecutorException {
 
         final StreamingPythonScriptExecutor<String> streamingPythonExecutor =
-                new StreamingPythonScriptExecutor<>(executableName,true);
+                new StreamingPythonScriptExecutor<>(executableName, true);
         Assert.assertNotNull(streamingPythonExecutor);
         Assert.assertTrue(streamingPythonExecutor.start(Collections.emptyList(), true, null));
 
@@ -85,18 +84,16 @@ public class StreamingPythonScriptExecutorUnitTest extends GATKBaseTest {
             // a message - "nkm") containing the details of the error, as well as to the exception
             // thrown by the executor
             streamingPythonExecutor.sendSynchronousCommand("0/0" + NL);
-        }
-        catch (PythonScriptExecutorException e) {
+        } catch (PythonScriptExecutorException e) {
             Assert.assertTrue(e.getMessage().contains("division"));
             throw e;
-        }
-        finally {
+        } finally {
             streamingPythonExecutor.terminate();
             Assert.assertFalse(streamingPythonExecutor.getProcess().isAlive());
         }
     }
 
-    @Test(groups = "python", dataProvider="supportedPythonVersions", dependsOnMethods = "testPythonExists")
+    @Test(groups = "python", dataProvider = "supportedPythonVersions", dependsOnMethods = "testPythonExists")
     public void testTerminateWhilePythonBlocked(final PythonScriptExecutor.PythonExecutableName executableName) {
         // Test termination on a Python process that is blocked on I/O to ensure that we don't leave
         // zombie Python processes around. This unfinished code block will cause Python to hang with
@@ -109,14 +106,13 @@ public class StreamingPythonScriptExecutorUnitTest extends GATKBaseTest {
         try {
             // send the output asynchronously so *we* don't block
             streamingPythonExecutor.sendAsynchronousCommand(UNTERMINATED_SCRIPT);
-        }
-        finally {
+        } finally {
             streamingPythonExecutor.terminate();
             Assert.assertFalse(streamingPythonExecutor.getProcess().isAlive());
         }
     }
 
-    @Test(groups = "python", dataProvider="supportedPythonVersions", dependsOnMethods = "testPythonExists",
+    @Test(groups = "python", dataProvider = "supportedPythonVersions", dependsOnMethods = "testPythonExists",
             expectedExceptions = RuntimeException.class)
     public void testTryTerminatedController(final PythonScriptExecutor.PythonExecutableName executableName) {
         final StreamingPythonScriptExecutor<String> streamingPythonExecutor =
@@ -129,7 +125,7 @@ public class StreamingPythonScriptExecutorUnitTest extends GATKBaseTest {
         streamingPythonExecutor.sendAsynchronousCommand("bogus command = controller is already terminated\n");
     }
 
-    @Test(groups = "python", dataProvider="supportedPythonVersions", dependsOnMethods = "testPythonExists",
+    @Test(groups = "python", dataProvider = "supportedPythonVersions", dependsOnMethods = "testPythonExists",
             expectedExceptions = IllegalArgumentException.class)
     public void testRequireNewlineTerminatedCommand(final PythonScriptExecutor.PythonExecutableName executableName) {
         final String NO_NEWLINE_SCRIPT = "print 'hello, world'";
@@ -138,20 +134,19 @@ public class StreamingPythonScriptExecutorUnitTest extends GATKBaseTest {
         Assert.assertTrue(streamingPythonExecutor.start(Collections.emptyList()));
         try {
             streamingPythonExecutor.sendAsynchronousCommand(NO_NEWLINE_SCRIPT);
-        }
-        finally {
+        } finally {
             streamingPythonExecutor.terminate();
             Assert.assertFalse(streamingPythonExecutor.getProcess().isAlive());
         }
     }
 
-    @Test(groups = "python", dataProvider="supportedPythonVersions", dependsOnMethods = "testPythonExists",
-            timeOut=10000, invocationCount = 10)
+    @Test(groups = "python", dataProvider = "supportedPythonVersions", dependsOnMethods = "testPythonExists",
+            timeOut = 10000, invocationCount = 10)
     public void testAsyncWriteService(final PythonScriptExecutor.PythonExecutableName executableName) throws IOException {
         // Python script statements to open, read, and write to and from the FIFO and temporary files
-        final String PYTHON_OPEN_TEMP_FILE      = "tempFile = open('%s', 'w')" + NL;
+        final String PYTHON_OPEN_TEMP_FILE = "tempFile = open('%s', 'w')" + NL;
         final String PYTHON_TRANSFER_FIFO_TO_TEMP_FILE = "for i in range(%s):\n    tempFile.write(tool.readDataFIFO())" + NL + NL;
-        final String PYTHON_CLOSE_TEMP_FILE     = "tempFile.close()" + NL;
+        final String PYTHON_CLOSE_TEMP_FILE = "tempFile.close()" + NL;
         final String ROUND_TRIP_DATA = "round trip data (%s)" + NL;
 
         final List<String> linesWrittenToFIFO = new ArrayList<>();
@@ -171,7 +166,7 @@ public class StreamingPythonScriptExecutorUnitTest extends GATKBaseTest {
             // ask python to open the temp file
             streamingPythonExecutor.sendSynchronousCommand(String.format(PYTHON_OPEN_TEMP_FILE, tempFile.getAbsolutePath()));
 
-            final int ROUND_TRIP_COUNT = 100*1024;
+            final int ROUND_TRIP_COUNT = 100 * 1024;
             final int syncFrequency = 1024;
 
             List<String> fifoData = new ArrayList<>(syncFrequency);
@@ -206,41 +201,39 @@ public class StreamingPythonScriptExecutorUnitTest extends GATKBaseTest {
             streamingPythonExecutor.sendSynchronousCommand(PYTHON_CLOSE_TEMP_FILE);
             //Assert.assertTrue(asyncWriter.terminate());
             Assert.assertEquals(linesWrittenToFIFO.size(), ROUND_TRIP_COUNT);
-        }
-        finally {
+        } finally {
             streamingPythonExecutor.terminate();
             Assert.assertFalse(streamingPythonExecutor.getProcess().isAlive());
         }
 
         // read the temp file in and make sure everything written to the FIFO was round-tripped by Python,
         // including the round-trip count
-        try (final FileInputStream fis= new FileInputStream(tempFile);
+        try (final FileInputStream fis = new FileInputStream(tempFile);
              final BufferedLineReader br = new BufferedLineReader(fis)) {
             linesWrittenToFIFO.forEach(expectedLine -> Assert.assertEquals(br.readLine() + NL, expectedLine));
         }
     }
 
-    @Test(groups = "python", dataProvider="supportedPythonVersions")
+    @Test(groups = "python", dataProvider = "supportedPythonVersions")
     public void testEnablePythonProfiling(final PythonScriptExecutor.PythonExecutableName executableName) throws IOException {
         // create a temporary output file for the profile results
         final File profileFile = createTempFile("pythonProfileTest", "txt");
         final String CONSUME_SOME_CPU_SCRIPT = "list(2 * n for n in range(100))" + NL;
 
         final StreamingPythonScriptExecutor<String> streamingPythonExecutor =
-                new StreamingPythonScriptExecutor<>(executableName,true);
+                new StreamingPythonScriptExecutor<>(executableName, true);
         Assert.assertNotNull(streamingPythonExecutor);
 
         Assert.assertTrue(streamingPythonExecutor.start(Collections.emptyList(), false, profileFile));
 
         try {
             streamingPythonExecutor.sendSynchronousCommand(CONSUME_SOME_CPU_SCRIPT);
-        }
-        finally {
+        } finally {
             streamingPythonExecutor.terminate();
             Assert.assertFalse(streamingPythonExecutor.getProcess().isAlive());
         }
         // read the temp file in and validate
-        try (final FileInputStream fis= new FileInputStream(profileFile);
+        try (final FileInputStream fis = new FileInputStream(profileFile);
              final BufferedLineReader br = new BufferedLineReader(fis)) {
             final String profileLine1 = br.readLine();
             Assert.assertNotNull(profileLine1);
@@ -248,10 +241,26 @@ public class StreamingPythonScriptExecutorUnitTest extends GATKBaseTest {
         }
     }
 
-    @Test(groups = "python", dataProvider="supportedPythonVersions", dependsOnMethods = "testPythonExists",
+    @Test(groups = "python", dataProvider = "supportedPythonVersions", dependsOnMethods = "testPythonExists",
             expectedExceptions = PythonScriptExecutorException.class)
-    public void testRaisePythonException(final PythonScriptExecutor.PythonExecutableName executableName) {
-        executeBadPythonCode(executableName,"raise Exception");
+    public void testRaiseSynchronousPythonException(final PythonScriptExecutor.PythonExecutableName executableName) {
+        executeBadPythonCode(executableName, "raise Exception");
+    }
+
+    @Test(groups = "python", dataProvider = "supportedPythonVersions", dependsOnMethods = "testPythonExists",
+            expectedExceptions = PythonScriptExecutorException.class)
+    public void testRaiseAsyncPythonException(final PythonScriptExecutor.PythonExecutableName executableName) {
+        final StreamingPythonScriptExecutor<String> streamingPythonExecutor =
+                new StreamingPythonScriptExecutor<>(executableName, true);
+        Assert.assertNotNull(streamingPythonExecutor);
+        Assert.assertTrue(streamingPythonExecutor.start(Collections.emptyList(), true, null));
+
+        try {
+            streamingPythonExecutor.sendAsynchronousCommand("raise Exception" + NL);
+        } finally {
+            streamingPythonExecutor.terminate();
+            Assert.assertFalse(streamingPythonExecutor.getProcess().isAlive());
+        }
     }
 
     @Test(groups = "python", dataProvider="supportedPythonVersions", dependsOnMethods = "testPythonExists",
