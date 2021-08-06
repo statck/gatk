@@ -10,6 +10,11 @@ The first job is to find the query in question and get the job id (e.g. `spec-op
 
 This part is painful for AoU because the BigQuery jobs are run as the service account user and our pmi-ops.org accounts don't have access to see those jobs.  This means we can't use the GUI to look for these job ids.
 
+To auth as the service account run
+
+	gcloud auth activate-service-account --key-file=<service-account-json>
+
+
 You need to use the BQ command line tool to list jobs
 
 ```
