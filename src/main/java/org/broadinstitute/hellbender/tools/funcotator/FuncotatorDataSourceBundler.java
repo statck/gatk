@@ -49,6 +49,7 @@ import java.net.HttpURLConnection;
 import java.io.File;
 import java.nio.file.Path;
 //import org.broadinstitute.hellbender.tools.funcotator.FuncotatorDataSourceBundlerUtils.getDSFileName;
+import java.nio.file.Files;
 
 //import org.jsoup.Connection;
 //import org.jsoup.Jsoup;
@@ -216,28 +217,34 @@ public class FuncotatorDataSourceBundler extends CommandLineProgram {
         final String dataSourceSpecies = speciesName;
         final String dataSourceURL;
         final Path dataSourcePath;
+        final String fileName;
 
         // Get the correct data source:
         if (getBacteriaDataSources) {
             dataSourceOrganism = "bacteria";
-            dataSourceURL = BACTERIA_BASE_URL + speciesName + "/" + FuncotatorDataSourceBundlerUtils.buildMapGetFileName(dataSourceOrganism, speciesName) + "." + DataSourceUtils.GTF_GZ_EXTENSION;
-            dataSourcePath = IOUtils.getPath(BACTERIA_BASE_URL + speciesName + "/" + FuncotatorDataSourceBundlerUtils.getDSFileName(dataSourceOrganism, speciesName) + "." + DataSourceUtils.GTF_GZ_EXTENSION);
+            fileName = FuncotatorDataSourceBundlerUtils.buildMapGetFileName(dataSourceOrganism, speciesName);
+            dataSourceURL = BACTERIA_BASE_URL + speciesName + "/" + fileName + "." + DataSourceUtils.GTF_GZ_EXTENSION;
+            dataSourcePath = IOUtils.getPath(speciesName + "/" + fileName + "." + DataSourceUtils.GTF_GZ_EXTENSION);
         } else if (getFungiDataSources) {
             dataSourceOrganism = "fungi";
-            dataSourceURL = FUNGI_BASE_URL + speciesName + "/" + FuncotatorDataSourceBundlerUtils.buildMapGetFileName(dataSourceOrganism, speciesName) + "." + DataSourceUtils.GTF_GZ_EXTENSION;
-            dataSourcePath = IOUtils.getPath(FUNGI_BASE_URL + speciesName + "/" + FuncotatorDataSourceBundlerUtils.getDSFileName(dataSourceOrganism, speciesName) + "." + DataSourceUtils.GTF_GZ_EXTENSION);
+            fileName = FuncotatorDataSourceBundlerUtils.buildMapGetFileName(dataSourceOrganism, speciesName);
+            dataSourceURL = FUNGI_BASE_URL + speciesName + "/" + fileName + "." + DataSourceUtils.GTF_GZ_EXTENSION;
+            dataSourcePath = IOUtils.getPath(speciesName + "/" + fileName + "." + DataSourceUtils.GTF_GZ_EXTENSION);
         } else if (getMetazoaDataSources) {
             dataSourceOrganism = "metazoa";
-            dataSourceURL = METAZOA_BASE_URL + speciesName + "/" + FuncotatorDataSourceBundlerUtils.buildMapGetFileName(dataSourceOrganism, speciesName) + "." + DataSourceUtils.GTF_GZ_EXTENSION;
-            dataSourcePath = IOUtils.getPath(METAZOA_BASE_URL + speciesName + "/" + FuncotatorDataSourceBundlerUtils.getDSFileName(dataSourceOrganism, speciesName) + "." + DataSourceUtils.GTF_GZ_EXTENSION);
+            fileName = FuncotatorDataSourceBundlerUtils.buildMapGetFileName(dataSourceOrganism, speciesName);
+            dataSourceURL = METAZOA_BASE_URL + speciesName + "/" + fileName + "." + DataSourceUtils.GTF_GZ_EXTENSION;
+            dataSourcePath = IOUtils.getPath(speciesName + "/" + fileName + "." + DataSourceUtils.GTF_GZ_EXTENSION);
         } else if (getPlantsDataSources) {
             dataSourceOrganism = "plants";
-            dataSourceURL = PLANTS_BASE_URL + speciesName + "/" + FuncotatorDataSourceBundlerUtils.buildMapGetFileName(dataSourceOrganism, speciesName) + "." + DataSourceUtils.GTF_GZ_EXTENSION;
-            dataSourcePath = IOUtils.getPath(PLANTS_BASE_URL + speciesName + "/" + FuncotatorDataSourceBundlerUtils.getDSFileName(dataSourceOrganism, speciesName) + "." + DataSourceUtils.GTF_GZ_EXTENSION);
+            fileName = FuncotatorDataSourceBundlerUtils.buildMapGetFileName(dataSourceOrganism, speciesName);
+            dataSourceURL = PLANTS_BASE_URL + speciesName + "/" + fileName + "." + DataSourceUtils.GTF_GZ_EXTENSION;
+            dataSourcePath = IOUtils.getPath(speciesName + "/" + fileName + "." + DataSourceUtils.GTF_GZ_EXTENSION);
         } else {
             dataSourceOrganism = "protists";
-            dataSourceURL = PROTISTS_BASE_URL + speciesName + "/" + FuncotatorDataSourceBundlerUtils.buildMapGetFileName(dataSourceOrganism, speciesName) + "." + DataSourceUtils.GTF_GZ_EXTENSION;
-            dataSourcePath = IOUtils.getPath(PROTISTS_BASE_URL + speciesName + "/" + FuncotatorDataSourceBundlerUtils.getDSFileName(dataSourceOrganism, speciesName) + "." + DataSourceUtils.GTF_GZ_EXTENSION);
+            fileName = FuncotatorDataSourceBundlerUtils.buildMapGetFileName(dataSourceOrganism, speciesName);
+            dataSourceURL = PROTISTS_BASE_URL + speciesName + "/" + fileName + "." + DataSourceUtils.GTF_GZ_EXTENSION;
+            dataSourcePath = IOUtils.getPath(speciesName + "/" + fileName + "." + DataSourceUtils.GTF_GZ_EXTENSION);
         }
 
         downloadAndValidateDataSources(dataSourceOrganism, dataSourceSpecies, dataSourceURL, dataSourcePath);
@@ -259,6 +266,10 @@ public class FuncotatorDataSourceBundler extends CommandLineProgram {
     // Instance Methods:
 
     private void downloadAndValidateDataSources(final String dsOrganism, final String dsSpecies, final String dsURL, final Path dsPath){
+
+        final Path outputDestination = getOutputLocation(dsPath).toAbsolutePath();
+        final Path source = dsPath.toAbsolutePath();
+
         logger.info(dsOrganism + ":" + dsSpecies + " data sources selected.");
 
         // Creating CloseableHttpClient object to access the webpage and retrieve the file:
@@ -274,8 +285,8 @@ public class FuncotatorDataSourceBundler extends CommandLineProgram {
             HttpEntity entity = response.getEntity();
 
             // Extracting the data from the entity object:
-            try( InputStream inputStream = entity.getContent();
-                 OutputStream outputStream = new FileOutputStream(outputFile) ) {
+            try( final InputStream inputStream = entity.getContent();
+                 final OutputStream outputStream = Files.newOutputStream(outputDestination) ) {
 
                 // Perform the copy:
                 while (true) {
@@ -291,7 +302,7 @@ public class FuncotatorDataSourceBundler extends CommandLineProgram {
                 }
             }
             catch (final IOException ex) {
-                throw new UserException("Could not copy file: " + dsURL + " -> " + outputFile, ex);
+                throw new UserException("Could not copy file: " + dsURL + " -> " + outputDestination.toUri().toString(), ex);
             }
         }
         catch (final IOException ex) {
@@ -300,7 +311,6 @@ public class FuncotatorDataSourceBundler extends CommandLineProgram {
 
         // Extract data sources if requested:
         if ( extractDataSourcesAfterDownload ) {
-            final Path outputDestination = getOutputLocation(dsPath);
             IOUtils.extractTarGz(outputDestination, outputDestination.getParent(), overwriteOutputFile);
         }
         else {

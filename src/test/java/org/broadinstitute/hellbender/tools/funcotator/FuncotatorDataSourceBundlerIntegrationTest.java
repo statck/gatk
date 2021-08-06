@@ -92,7 +92,7 @@ public class FuncotatorDataSourceBundlerIntegrationTest extends CommandLineProgr
                     FuncotatorDataSourceBundler.METAZOA_ARG_LONG_NAME,
                         "acyrthosiphon_pisum",
                         false,
-                        false
+                        true
 
                 }
 //                {
@@ -192,7 +192,7 @@ public class FuncotatorDataSourceBundlerIntegrationTest extends CommandLineProgr
 
         // Now verify we got the data sources and clean up the files
         // so we don't have up to 30 gigs of stuff lying around:
-        verifyDataSourcesExistThenDeleteThem(dsOrgArg, dsSpeciesArg, doExtract);
+//        verifyDataSourcesExistThenDeleteThem(dsOrgArg, dsSpeciesArg, doExtract);
     }
 
 }
